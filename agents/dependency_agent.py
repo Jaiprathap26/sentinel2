@@ -1,9 +1,9 @@
 import os
 import time
-import json
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from models import AgentResult, DepIssue
+from .utils import extract_json
 
 def analyze(requirements: str) -> AgentResult:
     if not requirements:
@@ -37,10 +37,7 @@ def analyze(requirements: str) -> AgentResult:
                 raise e
         
         if response:
-            content = response.content
-            if "[" in content and "]" in content:
-                content = content[content.find("["):content.rfind("]")+1]
-            findings = json.loads(content)
+            findings = extract_json(response.content)
     except Exception as e:
         print(f"Error in Dependency Agent: {e}")
         return AgentResult(agent_name="Dependencies", status="Error", findings_count=0, findings=[])

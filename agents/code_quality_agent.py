@@ -1,9 +1,9 @@
 import os
 import time
-import json
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from models import AgentResult, CodeIssue
+from .utils import extract_json
 
 def analyze(files: list) -> AgentResult:
     api_key = os.getenv("MERCURY_API_KEY")
@@ -36,12 +36,7 @@ def analyze(files: list) -> AgentResult:
                     raise e
             
             if response:
-                # Basic JSON extraction in case the model adds chatter
-                content = response.content
-                if "[" in content and "]" in content:
-                    content = content[content.find("["):content.rfind("]")+1]
-                
-                file_issues = json.loads(content)
+                file_issues = extract_json(response.content)
                 findings.extend(file_issues)
         except Exception as e:
             print(f"Error in Code Quality Agent for {file['path']}: {e}")

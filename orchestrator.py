@@ -1,5 +1,7 @@
 import os
+import asyncio
 from datetime import datetime
+from typing import Optional, Callable, Awaitable
 from langchain_openai import ChatOpenAI
 from github_reader import read_repo
 from agents import (
@@ -11,38 +13,43 @@ from agents import (
 )
 from models import AnalysisReport, AgentResult
 
-def run_analysis(github_url: str) -> AnalysisReport:
+async def run_analysis(github_url: str, on_progress: Optional[Callable[[dict], Awaitable[None]]] = None) -> AnalysisReport:
     """
-    Orchestrates the analysis by calling the reader and all 5 agents sequentially.
+    Orchestrates the analysis by calling the reader and all 5 agents in parallel.
     """
-    # 1. Read Repo
+    # 1. Read Repo (Synchronous call, typically fast enough or could be wrapped too)
     repo_data = read_repo(github_url)
     files = repo_data["files"]
     requirements = repo_data["requirements"]
     repo_name = repo_data["repo_name"]
 
-    # 2. Run Agents Sequentially
-    results = []
-    
-    print("Running Code Quality Agent...")
-    results.append(code_quality_agent.analyze(files))
-    
-    print("Running Security Agent...")
-    results.append(security_agent.analyze(files))
-    
-    print("Running Architecture Agent...")
-    results.append(architecture_agent.analyze(files))
-    
-    print("Running Documentation Agent...")
-    results.append(documentation_agent.analyze(files))
-    
-    print("Running Dependency Agent...")
-    results.append(dependency_agent.analyze(requirements))
+    # 2. Helper to run agent with progress reporting
+    async def run_agent(agent_fn, agent_name, *args):
+        if on_progress:
+            await on_progress({"event": "agent_start", "agent": agent_name})
+        
+        # Agents are currently synchronous, so we run them in a thread pool
+        result = await asyncio.to_thread(agent_fn, *args)
+        
+        if on_progress:
+            await on_progress({"event": "agent_done", "agent": agent_name, "findings": result.findings_count})
+        return result
 
-    # 3. Calculate Totals
+    # 3. Run all agents in parallel
+    tasks = [
+        run_agent(code_quality_agent.analyze, "Code Quality", files),
+        run_agent(security_agent.analyze, "Security", files),
+        run_agent(architecture_agent.analyze, "Architecture", files),
+        run_agent(documentation_agent.analyze, "Documentation", files),
+        run_agent(dependency_agent.analyze, "Dependency", requirements)
+    ]
+    
+    results = await asyncio.gather(*tasks)
+
+    # 4. Calculate Totals
     total_issues = sum(r.findings_count for r in results)
 
-    # 4. Generate Summary using Mercury
+    # 5. Generate Summary using Mercury
     api_key = os.getenv("MERCURY_API_KEY")
     base_url = os.getenv("MERCURY_BASE_URL")
     llm = ChatOpenAI(
@@ -57,7 +64,8 @@ def run_analysis(github_url: str) -> AnalysisReport:
     """
     
     try:
-        summary_response = llm.invoke(summary_prompt)
+        # Using ainvoke for async LLM call
+        summary_response = await llm.ainvoke(summary_prompt)
         summary = summary_response.content.strip()
     except Exception as e:
         summary = f"Analysis completed with {total_issues} total issues found. Summary generation failed due to: {e}"

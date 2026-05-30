@@ -1,9 +1,9 @@
 import os
 import time
-import json
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from models import AgentResult, SecurityVulnerability
+from .utils import extract_json
 
 def analyze(files: list) -> AgentResult:
     api_key = os.getenv("MERCURY_API_KEY")
@@ -35,10 +35,7 @@ def analyze(files: list) -> AgentResult:
                     raise e
             
             if response:
-                content = response.content
-                if "[" in content and "]" in content:
-                    content = content[content.find("["):content.rfind("]")+1]
-                file_findings = json.loads(content)
+                file_findings = extract_json(response.content)
                 findings.extend(file_findings)
         except Exception as e:
             print(f"Error in Security Agent for {file['path']}: {e}")
