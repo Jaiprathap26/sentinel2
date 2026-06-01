@@ -1,1 +1,1 @@
-web: streamlit run dashboard.py --server.address 0.0.0.0 --server.headless true
+web: python start.py
