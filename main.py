@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import orchestrator
 import json
+import os
 from models import AnalysisReport
 
 app = FastAPI(title="SENTINEL - AI GitHub Analyzer", version="1.0.0")
@@ -73,4 +74,5 @@ async def analyze_stream(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
