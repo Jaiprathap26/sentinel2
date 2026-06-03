@@ -1,4 +1,13 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from loguru import logger
+import sys
+import os
+
+logger.remove()
+logger.add(sys.stdout, level="INFO")
+logger.add("logs/sentinel2.log", rotation="10 MB", level="INFO")
+
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Security, Depends
+from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import orchestrator
@@ -17,6 +26,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def verify_api_key(api_key_header: str = Security(api_key_header)):
+    expected_api_key = os.getenv("SERVICE_API_KEY")
+    if expected_api_key and api_key_header == expected_api_key:
+        return api_key_header
+    raise HTTPException(
+        status_code=403, detail="Could not validate API key"
+    )
+
+
 class AnalysisRequest(BaseModel):
     github_url: str
 
@@ -24,7 +46,7 @@ class AnalysisRequest(BaseModel):
 async def root():
     return {"status": "SENTINEL is online", "version": "1.0.0"}
 
-@app.post("/analyze", response_model=AnalysisReport)
+@app.post("/analyze", response_model=AnalysisReport, dependencies=[Depends(verify_api_key)])
 async def analyze_repo(request: AnalysisRequest):
     try:
         # Await the async run_analysis
@@ -62,7 +84,7 @@ async def analyze_stream(websocket: WebSocket):
         }))
         
     except WebSocketDisconnect:
-        print("WebSocket client disconnected")
+        logger.info("WebSocket client disconnected")
     except Exception as e:
         error_msg = {"event": "error", "detail": str(e)}
         await websocket.send_text(json.dumps(error_msg))

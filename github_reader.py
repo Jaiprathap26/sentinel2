@@ -1,3 +1,4 @@
+from loguru import logger
 import os
 from github import Github, GithubException
 from urllib.parse import urlparse
@@ -54,5 +55,5 @@ def read_repo(github_url: str) -> dict:
             "repo_name": f"{owner}/{repo_name}"
         }
     except Exception as e:
-        print(f"Error reading repo: {e}")
+        logger.error(f"Error reading repo: {e}")
         raise e

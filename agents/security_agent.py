@@ -1,3 +1,4 @@
+from loguru import logger
 import os
 import time
 from langchain_openai import ChatOpenAI
@@ -38,7 +39,7 @@ def analyze(files: list) -> AgentResult:
                 file_findings = extract_json(response.content)
                 findings.extend(file_findings)
         except Exception as e:
-            print(f"Error in Security Agent for {file['path']}: {e}")
+            logger.error(f"Error in Security Agent for {file['path']}: {e}")
             continue
 
     return AgentResult(

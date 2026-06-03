@@ -1,3 +1,4 @@
+from loguru import logger
 import os
 import time
 from langchain_openai import ChatOpenAI
@@ -39,7 +40,7 @@ def analyze(requirements: str) -> AgentResult:
         if response:
             findings = extract_json(response.content)
     except Exception as e:
-        print(f"Error in Dependency Agent: {e}")
+        logger.error(f"Error in Dependency Agent: {e}")
         return AgentResult(agent_name="Dependencies", status="Error", findings_count=0, findings=[])
 
     return AgentResult(
