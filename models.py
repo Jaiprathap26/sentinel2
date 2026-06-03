@@ -38,6 +38,7 @@ class AgentResult(BaseModel):
     status: str
     findings_count: int
     findings: List[dict]
+    error: Optional[str] = None
 
 class AnalysisReport(BaseModel):
     repo_url: str

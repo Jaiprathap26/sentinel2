@@ -1,3 +1,4 @@
+from loguru import logger
 import os
 import time
 from langchain_openai import ChatOpenAI
@@ -39,7 +40,7 @@ def analyze(files: list) -> AgentResult:
                 file_issues = extract_json(response.content)
                 findings.extend(file_issues)
         except Exception as e:
-            print(f"Error in Code Quality Agent for {file['path']}: {e}")
+            logger.error(f"Error in Code Quality Agent for {file['path']}: {e}")
             continue
 
     return AgentResult(

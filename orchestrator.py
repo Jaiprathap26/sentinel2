@@ -44,7 +44,26 @@ async def run_analysis(github_url: str, on_progress: Optional[Callable[[dict], A
         run_agent(dependency_agent.analyze, "Dependency", requirements)
     ]
     
-    results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Process results to handle exceptions gracefully
+    processed_results = []
+    agent_names = ["Code Quality", "Security", "Architecture", "Documentation", "Dependency"]
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            processed_results.append(
+                AgentResult(
+                    agent_name=agent_names[i],
+                    status="failed",
+                    findings_count=0,
+                    findings=[],
+                    error=str(result)
+                )
+            )
+        else:
+            processed_results.append(result)
+
+    results = processed_results
 
     # 4. Calculate Totals
     total_issues = sum(r.findings_count for r in results)
